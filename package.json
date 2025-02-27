@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev --turbopack --experimental-https",
+    "dev": "next dev --turbopack",
     "build": "npm run db:generate && next build",
     "start": "next start",
     "lint": "next lint",
@@ -32,8 +32,6 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "^1.0.4",
-    "firebase": "^11.3.1",
-    "firebase-admin": "^13.1.0",
     "framer-motion": "^12.4.5",
     "lucide-react": "^0.475.0",
     "next": "15.1.7",
