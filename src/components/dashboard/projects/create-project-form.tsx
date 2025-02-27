@@ -413,7 +413,7 @@ const CreateProjectForm = ({
                   </Button>
                 </div>
 
-                <Card className="border bg-gradient-to-r from-indigo-50 to-purple-50 dark:bg-gradient-to-r dark:from-indigo-900 dark:to-purple-900">
+                <Card className="border bg-gradient-to-r from-indigo-50 to-purple-50 dark:bg-gradient-to-r dark:from-indigo-900 dark:to-purple-900 max-w-[512px] overflow-auto">
                   <CardContent className="p-2">
                     <p className="text-sm font-medium mb-2 flex items-center">
                       <Sparkles className="h-3 w-3 mr-2 text-indigo-600" />
@@ -433,7 +433,7 @@ const CreateProjectForm = ({
                           <Button
                             key={index}
                             variant="outline"
-                            className="justify-start text-left h-auto py-2 hover:bg-indigo-100 hover:text-indigo-900 hover:border-indigo-300 transition-all"
+                            className="justify-start text-left h-auto py-2 hover:bg-indigo-100 hover:text-indigo-900 hover:border-indigo-300 transition-all max-w-[512px] overflow-auto"
                             onClick={() => {
                               setProjectName(title);
                               setShowTitleSuggestions(false);
