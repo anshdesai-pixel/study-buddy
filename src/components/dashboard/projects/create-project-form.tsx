@@ -322,10 +322,16 @@ const CreateProjectForm = ({
 
   const now = new Date().toISOString().slice(0, 16);
 
-  const selectedUserNames = selectedUsers.map(
-    (id) => allUsers.find((user) => user.id === id)?.name
-  );
-
+  const selectedUserNames = selectedUsers
+    .map((id) => {
+      const user = allUsers.find((user) => user.id === id);
+      return user
+        ? user.name
+          ? `${user.name} (${user.email})`
+          : `${user.email}`
+        : "";
+    })
+    .filter(Boolean);
   return (
     <Dialog open={isOpen} onOpenChange={handleDialogClose}>
       <DialogTrigger asChild>
