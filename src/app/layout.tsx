@@ -7,7 +7,6 @@ import { ThemeProvider } from "@/providers/theme.provider";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { Navbar } from "@/components/base/navbar.client";
 import { Toaster } from "sonner";
-import ReminderNotification from "@/components/base/reminder-notification";
 import { TooltipProvider } from "@/components/ui/tooltip";
 
 const geistSans = Geist({
@@ -56,9 +55,6 @@ export default function RootLayout({
                       <Navbar />
                       <main className="flex-1 overflow-y-auto h-[calc(100vh-64px)]">
                         {children}
-                        <div className="fixed bottom-4 right-4">
-                          <ReminderNotification />
-                        </div>
                       </main>
                     </div>
                   </div>
