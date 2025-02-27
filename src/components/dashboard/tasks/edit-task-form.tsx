@@ -92,12 +92,6 @@ const EditTaskForm = ({
     }
 
     // Validate dates
-    if (start_date < new Date()) {
-      toast.error("Start date cannot be in the past");
-      setIsLoading(false);
-      return;
-    }
-
     if (deadline < start_date) {
       toast.error("Deadline cannot be before the start date");
       setIsLoading(false);
