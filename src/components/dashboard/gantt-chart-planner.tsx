@@ -79,8 +79,8 @@ export default function GanttChartPlanner({ userId }: { userId: string }) {
       if (event.deadline > maxDate) maxDate = event.deadline;
     });
 
-    minDate.setDate(minDate.getDate() - 7);
-    maxDate.setDate(maxDate.getDate() + 7);
+    minDate.setDate(minDate.getDate());
+    maxDate.setDate(maxDate.getDate());
 
     const days: Date[] = [];
     const currentDate = new Date(minDate);
@@ -113,30 +113,65 @@ export default function GanttChartPlanner({ userId }: { userId: string }) {
   };
 
   const getEventSpan = (event: Event) => {
-    const firstVisibleDate = visibleDays[0];
-    const lastVisibleDate = visibleDays[visibleDays.length - 1];
+    // Helper function to compare dates by day only
+    const isSameDay = (date1: Date, date2: Date) => {
+      return (
+        date1.getDate() === date2.getDate() &&
+        date1.getMonth() === date2.getMonth() &&
+        date1.getFullYear() === date2.getFullYear()
+      );
+    };
 
-    // Ensure the event's start and end dates are within the visible range
-    const startDate =
-      event.start_date < firstVisibleDate ? firstVisibleDate : event.start_date;
-    const endDate =
-      event.deadline > lastVisibleDate ? lastVisibleDate : event.deadline;
+    // Find the actual indices in the visible days array
+    let startIndex = -1;
+    let endIndex = -1;
 
-    const startIndex = visibleDays.findIndex(
-      (date) => date.toDateString() === startDate.toDateString()
-    );
-    const endIndex = visibleDays.findIndex(
-      (date) => date.toDateString() === endDate.toDateString()
-    );
-
-    // If the event is not within the visible range, return a span of 0
-    if (startIndex === -1 || endIndex === -1) {
-      return { start: 0, span: 0 };
+    // Search for the exact match of start and end dates in visible days
+    for (let i = 0; i < visibleDays.length; i++) {
+      if (isSameDay(event.start_date, visibleDays[i]) && startIndex === -1) {
+        startIndex = i;
+      }
+      if (isSameDay(event.deadline, visibleDays[i])) {
+        endIndex = i;
+      }
     }
+
+    // Handle cases where the dates are outside the visible range
+    if (startIndex === -1) {
+      // If start date is before visible range, set to first visible day
+      if (event.start_date < visibleDays[0]) {
+        startIndex = 0;
+      } else {
+        // If start date is after the visible range, event is not visible
+        return { start: 0, span: 0 };
+      }
+    }
+
+    if (endIndex === -1) {
+      // If end date is after visible range, set to last visible day
+      if (event.deadline > visibleDays[visibleDays.length - 1]) {
+        endIndex = visibleDays.length - 1;
+      } else {
+        // If end date is before the visible range, event is not visible
+        return { start: 0, span: 0 };
+      }
+    }
+
+    // Calculate the span ensuring it's at least 1
+    const span = Math.max(1, endIndex - startIndex + 1);
+
+    // Additional debug logging
+    console.log(`Event: ${event.title || event.name}`, {
+      start_date: event.start_date.toDateString(),
+      deadline: event.deadline.toDateString(),
+      startIndex,
+      endIndex,
+      span,
+    });
 
     return {
       start: startIndex,
-      span: endIndex - startIndex + 1,
+      span: span,
     };
   };
 
