@@ -69,8 +69,3 @@ Once running, open [http://localhost:3000](http://localhost:3000) with your brow
 - Gantt chart visualization for project timeline management
 - Timetable viewer to track and display deadlines
 - Personal reminder system for setting and managing individual tasks
-
-### Link For Testing Notification
-
-- local: https://localhost:3000/send-test-notifications
-- deployed: https://study-buddy-sepia.vercel.app/send-test-notifications
