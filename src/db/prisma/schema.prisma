@@ -1,0 +1,90 @@
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["multiSchema"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("NEXT_PUBLIC_DB_URL_PROD")
+  schemas  = ["neon_auth"]
+}
+
+model note {
+  id         String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  title      String
+  content    String?
+  userId     String
+  users_sync users_sync @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "constraint_1")
+
+  @@schema("neon_auth")
+}
+
+model project {
+  id             String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name           String
+  description    String?
+  ownerId        String
+  deadline       DateTime         @db.Date
+  start_date     DateTime         @db.Date
+  users_sync     users_sync       @relation(fields: [ownerId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "constraint_1")
+  project_member project_member[]
+  task           task[]
+
+  @@schema("neon_auth")
+}
+
+model project_member {
+  id         String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  role       String
+  projectId  String     @db.Uuid
+  userId     String
+  users_sync users_sync @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "constraint_1")
+  project    project    @relation(fields: [projectId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "constraint_2")
+
+  @@schema("neon_auth")
+}
+
+model task {
+  id              String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  title           String
+  description     String?
+  deadline        DateTime      @db.Date
+  userId          String
+  start_date      DateTime      @db.Date
+  projectId       String?       @db.Uuid
+  is_project_task Boolean?      @default(false)
+  users_sync      users_sync    @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "constraint_1")
+  project         project?      @relation(fields: [projectId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "constraint_2")
+  task_member     task_member[]
+
+  @@schema("neon_auth")
+}
+
+model users_sync {
+  raw_json       Json
+  id             String           @id @default(dbgenerated("(raw_json ->> 'id'::text)"))
+  name           String?          @default(dbgenerated("(raw_json ->> 'display_name'::text)"))
+  email          String?          @default(dbgenerated("(raw_json ->> 'primary_email'::text)"))
+  created_at     DateTime?        @default(dbgenerated("to_timestamp((trunc((((raw_json ->> 'signed_up_at_millis'::text))::bigint)::double precision) / (1000)::double precision))")) @db.Timestamptz(6)
+  updated_at     DateTime?        @db.Timestamptz(6)
+  deleted_at     DateTime?        @db.Timestamptz(6)
+  note           note[]
+  project        project[]
+  project_member project_member[]
+  task           task[]
+  task_member    task_member[]
+
+  @@index([deleted_at])
+  @@schema("neon_auth")
+}
+
+model task_member {
+  id         String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  role       String
+  taskId     String      @db.Uuid
+  userId     String?
+  task       task        @relation(fields: [taskId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "constraint_1")
+  users_sync users_sync? @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "constraint_2")
+
+  @@schema("neon_auth")
+}
