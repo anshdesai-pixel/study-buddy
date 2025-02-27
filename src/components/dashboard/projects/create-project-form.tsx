@@ -218,8 +218,8 @@ const CreateProjectForm = ({
     const name = formData.get("name") as string;
     const description = (formData.get("description") as string) || null;
 
-    const startDate = new Date(startDateStr);
-    const deadline = new Date(deadlineStr);
+    const startDate = new Date(startDateStr + "Z");
+    const deadline = new Date(deadlineStr + "Z");
     const now = new Date();
 
     if (startDate < now) {
