@@ -23,6 +23,7 @@ import {
   RefreshCw,
   Loader2,
   ArrowDown,
+  AlertCircle,
 } from "lucide-react";
 import { CreateTaskInput } from "@/common/types/request/task.types";
 import { createTaskAction } from "@/app/_actions/task.actions";
@@ -47,6 +48,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Card, CardContent } from "@/components/ui/card";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 const CreateTaskForm = ({
   userId,
@@ -68,6 +70,11 @@ const CreateTaskForm = ({
   const [selectedProject, setSelectedProject] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
 
+  // Project validation states
+  const [projectValidationError, setProjectValidationError] = useState<
+    string | null
+  >(null);
+
   // AI suggestion states
   const [taskTitle, setTaskTitle] = useState<string>("");
   const [taskDescription, setTaskDescription] = useState<string>("");
@@ -81,6 +88,46 @@ const CreateTaskForm = ({
 
   // Debounce timer for API calls
   const summaryTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Selected project data
+  const selectedProjectData = selectedProject
+    ? allProjects.find((p) => p.id === selectedProject)
+    : null;
+
+  // Effect for validating project selection
+  useEffect(() => {
+    if (selectedProject && selectedProjectData) {
+      const projectStartDate = new Date(selectedProjectData.start_date);
+      const now = new Date();
+
+      // Check if project's start date is in the future
+      if (projectStartDate > now) {
+        setProjectValidationError(
+          `Project "${
+            selectedProjectData.name
+          }" has not started yet. It will start on ${projectStartDate.toLocaleDateString()}.`
+        );
+      } else {
+        setProjectValidationError(null);
+      }
+    } else {
+      setProjectValidationError(null);
+    }
+  }, [selectedProject, selectedProjectData]);
+
+  // Update deadline max date based on project selection
+  useEffect(() => {
+    if (selectedProject && selectedProjectData) {
+      // If the current deadline is beyond the project deadline, reset it
+      const projectDeadline = new Date(selectedProjectData.deadline);
+      if (deadline) {
+        const taskDeadline = new Date(deadline + "Z");
+        if (taskDeadline > projectDeadline) {
+          setDeadline("");
+        }
+      }
+    }
+  }, [selectedProject, selectedProjectData, deadline]);
 
   // Clear summary timer on unmount
   useEffect(() => {
@@ -216,8 +263,8 @@ const CreateTaskForm = ({
     const is_project_task = projectId !== null;
 
     // Parse dates
-    const startDate = new Date(startDateStr);
-    const deadline = new Date(deadlineStr);
+    const startDate = new Date(startDateStr + "Z");
+    const deadline = new Date(deadlineStr + "Z");
     const now = new Date();
 
     if (startDate < now) {
@@ -230,6 +277,30 @@ const CreateTaskForm = ({
       toast.error("Deadline cannot be before the start date");
       setIsLoading(false);
       return;
+    }
+
+    // Project validation
+    if (selectedProject && selectedProjectData) {
+      const projectStartDate = new Date(selectedProjectData.start_date);
+      const projectDeadline = new Date(selectedProjectData.deadline);
+
+      // Check if project has started
+      if (projectStartDate > now) {
+        toast.error(
+          `Cannot create task for project "${selectedProjectData.name}" as it has not started yet`
+        );
+        setIsLoading(false);
+        return;
+      }
+
+      // Check if task deadline is after project deadline
+      if (deadline > projectDeadline) {
+        toast.error(
+          `Task deadline cannot be after the project deadline (${projectDeadline.toLocaleDateString()})`
+        );
+        setIsLoading(false);
+        return;
+      }
     }
 
     const data: CreateTaskInput = {
@@ -284,11 +355,17 @@ const CreateTaskForm = ({
       setTitleSuggestions([]);
       setDescriptionSummary("");
       setShowTitleSuggestions(false);
+      setProjectValidationError(null);
     }
     setIsOpen(open);
   };
 
   const now = new Date().toISOString().slice(0, 16);
+
+  // Get project deadline as ISO string for max deadline date
+  const maxDeadline = selectedProjectData
+    ? new Date(selectedProjectData.deadline).toISOString().slice(0, 16)
+    : null;
 
   const selectedProjectName = allProjects.find(
     (p) => p.id === selectedProject
@@ -539,6 +616,23 @@ const CreateTaskForm = ({
                 </Button>
               )}
             </div>
+
+            {projectValidationError && (
+              <Alert variant="destructive" className="mt-2 p-2">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription className="ml-2 text-xs">
+                  {projectValidationError}
+                </AlertDescription>
+              </Alert>
+            )}
+
+            {selectedProjectData && !projectValidationError && (
+              <p className="text-xs text-gray-500 mt-1">
+                Project timeframe:{" "}
+                {new Date(selectedProjectData.start_date).toLocaleDateString()}{" "}
+                - {new Date(selectedProjectData.deadline).toLocaleDateString()}
+              </p>
+            )}
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -564,11 +658,17 @@ const CreateTaskForm = ({
                 name="deadline"
                 aria-label="Deadline"
                 min={startDate || now}
+                max={maxDeadline || undefined}
                 value={deadline}
                 onChange={(e) => setDeadline(e.target.value)}
                 required
                 disabled={isLoading}
               />
+              {selectedProjectData && (
+                <p className="text-xs text-gray-500">
+                  Cannot be later than project deadline
+                </p>
+              )}
             </div>
           </div>
 
@@ -584,7 +684,9 @@ const CreateTaskForm = ({
             <Button
               type="submit"
               aria-label="Submit Button"
-              disabled={isLoading}
+              disabled={
+                isLoading || (!!projectValidationError && !!selectedProject)
+              }
               className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700"
             >
               {isLoading ? (
