@@ -76,14 +76,14 @@ const EditProjectForm = ({
     const startDateStr = formData.get("start_date") as string;
     const deadlineStr = formData.get("deadline") as string;
 
-    const start_date = new Date(startDateStr);
+    const start_date = new Date(startDateStr + "Z");
     if (isNaN(start_date.getTime())) {
       toast.error("Please enter a valid start date");
       setIsLoading(false);
       return;
     }
 
-    const deadline = new Date(deadlineStr);
+    const deadline = new Date(deadlineStr + "Z");
     if (isNaN(deadline.getTime())) {
       toast.error("Please enter a valid deadline date");
       setIsLoading(false);

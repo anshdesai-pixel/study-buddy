@@ -1,7 +1,8 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 "use client";
 
 import React from "react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -15,7 +16,7 @@ import {
 import { UpdateTaskInput } from "@/common/types/request/task.types";
 import { updateTaskAction } from "@/app/_actions/task.actions";
 import { Label } from "@/components/ui/label";
-import { EditIcon, Search, X } from "lucide-react";
+import { EditIcon, Search, X, AlertCircle } from "lucide-react";
 import {
   Command,
   CommandEmpty,
@@ -30,6 +31,7 @@ import {
 } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import { Check } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 const EditTaskForm = ({
   task,
@@ -67,42 +69,123 @@ const EditTaskForm = ({
   const [selectedProject, setSelectedProject] = useState<string | null>(
     task.projectId || null
   );
+  const [startDate, setStartDate] = useState("");
+  const [deadline, setDeadline] = useState("");
+  const [projectValidationError, setProjectValidationError] = useState<
+    string | null
+  >(null);
+
+  // Selected project data
+  const selectedProjectData = selectedProject
+    ? allProjects.find((p) => p.id === selectedProject)
+    : null;
+
+  // Effect for validating project selection
+  useEffect(() => {
+    if (selectedProject && selectedProjectData) {
+      const projectStartDate = new Date(selectedProjectData.start_date);
+      const now = new Date();
+
+      // Check if project's start date is in the future
+      if (projectStartDate > now) {
+        setProjectValidationError(
+          `Project "${
+            selectedProjectData.name
+          }" has not started yet. It will start on ${projectStartDate.toLocaleDateString()}.`
+        );
+      } else {
+        setProjectValidationError(null);
+      }
+    } else {
+      setProjectValidationError(null);
+    }
+  }, [selectedProject, selectedProjectData]);
+
+  // Update deadline max date based on project selection
+  useEffect(() => {
+    if (selectedProject && selectedProjectData && deadline) {
+      // If the current deadline is beyond the project deadline, reset it
+      const projectDeadline = new Date(selectedProjectData.deadline);
+      const taskDeadline = new Date(deadline + "Z");
+      if (taskDeadline > projectDeadline) {
+        setDeadline("");
+      }
+    }
+  }, [selectedProject, selectedProjectData, deadline]);
+
+  // Initialize form values when editing task is set
+  useEffect(() => {
+    if (editingTask) {
+      setStartDate(formatDate(editingTask.start_date));
+      setDeadline(formatDate(editingTask.deadline));
+    }
+  }, [editingTask]);
 
   async function handleUpdate(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!editingTask) return;
 
     setIsLoading(true);
-    const formData = new FormData(event.currentTarget);
-    const startDateStr = formData.get("start_date") as string;
-    const deadlineStr = formData.get("deadline") as string;
 
-    const start_date = new Date(startDateStr);
+    // Get values from form or state
+    const formData = new FormData(event.currentTarget);
+    const title = formData.get("title") as string;
+    const description = (formData.get("description") as string) || null;
+    const startDateStr = startDate;
+    const deadlineStr = deadline;
+
+    const start_date = new Date(startDateStr + "Z");
     if (isNaN(start_date.getTime())) {
       toast.error("Please enter a valid start date");
       setIsLoading(false);
       return;
     }
 
-    const deadline = new Date(deadlineStr);
-    if (isNaN(deadline.getTime())) {
+    const deadlineDate = new Date(deadlineStr + "Z");
+    if (isNaN(deadlineDate.getTime())) {
       toast.error("Please enter a valid deadline date");
       setIsLoading(false);
       return;
     }
 
+    const now = new Date();
+
     // Validate dates
-    if (deadline < start_date) {
+    if (deadlineDate < start_date) {
       toast.error("Deadline cannot be before the start date");
       setIsLoading(false);
       return;
     }
 
+    // Project validation
+    if (selectedProject && selectedProjectData) {
+      const projectStartDate = new Date(selectedProjectData.start_date);
+      const projectDeadline = new Date(selectedProjectData.deadline);
+
+      // Check if project has started
+      if (projectStartDate > now) {
+        toast.error(
+          `Cannot update task for project "${selectedProjectData.name}" as it has not started yet`
+        );
+        setIsLoading(false);
+        return;
+      }
+
+      // Check if task deadline is after project deadline
+      if (deadlineDate > projectDeadline) {
+        toast.error(
+          `Task deadline cannot be after the project deadline (${projectDeadline.toLocaleDateString()})`
+        );
+        setIsLoading(false);
+        return;
+      }
+    }
+
     const data: UpdateTaskInput = {
-      title: formData.get("title") as string,
-      description: (formData.get("description") as string) || null,
+      title,
+      description,
       start_date: start_date.toISOString(),
-      deadline: deadline.toISOString(),
+      deadline: deadlineDate.toISOString(),
       projectId: selectedProject,
       is_project_task: selectedProject !== null,
     };
@@ -115,7 +198,6 @@ const EditTaskForm = ({
         toast.success("Task updated successfully");
         setEditingTask(null);
       }
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (error) {
       toast.error("Something went wrong. Please try again.");
     } finally {
@@ -132,6 +214,13 @@ const EditTaskForm = ({
     (p) => p.id === selectedProject
   )?.name;
 
+  // Get project deadline as ISO string for max deadline date
+  const maxDeadline = selectedProjectData
+    ? new Date(selectedProjectData.deadline).toISOString().slice(0, 16)
+    : null;
+
+  const now = new Date().toISOString().slice(0, 16);
+
   return (
     <div className="space-y-4">
       <div className="flex space-x-2 justify-end">
@@ -141,6 +230,9 @@ const EditTaskForm = ({
             if (!open) {
               setEditingTask(null);
               setSelectedProject(task.projectId || null);
+              setProjectValidationError(null);
+              setStartDate("");
+              setDeadline("");
             }
           }}
         >
@@ -160,7 +252,9 @@ const EditTaskForm = ({
             </DialogHeader>
             <form onSubmit={handleUpdate} className="space-y-4">
               <div>
+                <Label htmlFor="title">Title</Label>
                 <Input
+                  id="title"
                   name="title"
                   defaultValue={editingTask?.title}
                   placeholder="Task title"
@@ -169,7 +263,9 @@ const EditTaskForm = ({
                 />
               </div>
               <div>
+                <Label htmlFor="description">Description</Label>
                 <Textarea
+                  id="description"
                   name="description"
                   defaultValue={editingTask?.description}
                   placeholder="Add description"
@@ -237,15 +333,38 @@ const EditTaskForm = ({
                     </Button>
                   )}
                 </div>
+
+                {projectValidationError && (
+                  <Alert variant="destructive" className="mt-2 p-2">
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription className="ml-2 text-xs">
+                      {projectValidationError}
+                    </AlertDescription>
+                  </Alert>
+                )}
+
+                {selectedProjectData && !projectValidationError && (
+                  <p className="text-xs text-gray-500 mt-1">
+                    Project timeframe:{" "}
+                    {new Date(
+                      selectedProjectData.start_date
+                    ).toLocaleDateString()}{" "}
+                    -{" "}
+                    {new Date(
+                      selectedProjectData.deadline
+                    ).toLocaleDateString()}
+                  </p>
+                )}
               </div>
               <div>
                 <Label htmlFor="start_date">Start Date</Label>
                 <Input
                   type="datetime-local"
+                  id="start_date"
                   name="start_date"
-                  defaultValue={
-                    editingTask ? formatDate(editingTask.start_date) : ""
-                  }
+                  min={now}
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
                   required
                   disabled={isLoading}
                 />
@@ -254,13 +373,20 @@ const EditTaskForm = ({
                 <Label htmlFor="deadline">Deadline</Label>
                 <Input
                   type="datetime-local"
+                  id="deadline"
                   name="deadline"
-                  defaultValue={
-                    editingTask ? formatDate(editingTask.deadline) : ""
-                  }
+                  min={startDate || now}
+                  max={maxDeadline || undefined}
+                  value={deadline}
+                  onChange={(e) => setDeadline(e.target.value)}
                   required
                   disabled={isLoading}
                 />
+                {selectedProjectData && (
+                  <p className="text-xs text-gray-500">
+                    Cannot be later than project deadline
+                  </p>
+                )}
               </div>
               <div className="flex justify-end space-x-2">
                 <Button
@@ -271,7 +397,12 @@ const EditTaskForm = ({
                 >
                   Cancel
                 </Button>
-                <Button type="submit" disabled={isLoading}>
+                <Button
+                  type="submit"
+                  disabled={
+                    isLoading || (!!projectValidationError && !!selectedProject)
+                  }
+                >
                   {isLoading ? "Saving..." : "Save Changes"}
                 </Button>
               </div>
